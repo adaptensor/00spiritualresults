@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/*
+  Light, contemplative palette.
+  Variable names are kept from the original dark theme to avoid touching every
+  component — meaning has been inverted. A follow-up rename pass will give them
+  clearer semantic names (--color-bg, --color-surface, --color-text, etc.).
+*/
+@theme {
+  /* Surfaces (was dark in v1) */
+  --color-ink: #FAF7EE;          /* warm cream — page background */
+  --color-ink-deep: #FFFFFF;     /* pure white — elevated cards, nav */
+  --color-ink-soft: #F2EBD8;     /* dimmer cream — subtle sections */
+
+  /* Text (was light in v1) */
+  --color-parchment: #2A2218;        /* deep warm brown — primary text */
+  --color-parchment-deep: #5C4F3D;   /* medium brown — secondary text */
+
+  /* Accents — gold tuned for contrast on cream */
+  --color-gold: #B8893C;        /* saturated gold — button backgrounds */
+  --color-gold-soft: #8B6A1F;   /* DEEP gold — headings / accent text (high contrast on cream) */
+  --color-amber: #A85C1B;
+  --color-sage: #5E7148;
+  --color-violet-deep: #4A3870;
+
+  /* Dark text used on gold buttons (was ink-deep in v1) */
+  --color-button-text: #1F1810;
+
+  --font-serif: "Cormorant Garamond", "Georgia", serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-parchment);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+.prose-spiritual h2 { font-size: 1.875rem; margin-top: 2.5rem; margin-bottom: 1rem; color: var(--color-gold-soft); }
+.prose-spiritual h3 { font-size: 1.375rem; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--color-gold-soft); }
+.prose-spiritual p  { line-height: 1.75; margin-bottom: 1.25rem; }
+.prose-spiritual blockquote {
+  border-left: 3px solid var(--color-gold);
+  padding-left: 1.25rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: var(--color-parchment-deep);
+}
+.prose-spiritual em { color: var(--color-gold-soft); }
+.prose-spiritual ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1.25rem; }
+.prose-spiritual ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 1.25rem; }

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" aria-label="Spiritual Results">
+  <circle cx="100" cy="100" r="78" stroke="#8B6A1F" stroke-width="6" />
+  <path
+    d="M 100 36
+       C 130 70, 132 128, 112 156
+       C 106 163, 102 167, 100 170
+       C 98 167, 94 163, 88 156
+       C 68 128, 70 70, 100 36 Z"
+    stroke="#8B6A1F"
+    stroke-width="6"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M 100 78
+       C 117 98, 118 130, 107 150
+       C 104 156, 101 160, 100 162
+       C 99 160, 96 156, 93 150
+       C 82 130, 83 98, 100 78 Z"
+    stroke="#8B6A1F"
+    stroke-width="6"
+    stroke-linejoin="round"
+  />
+</svg>

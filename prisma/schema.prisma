@@ -1,0 +1,205 @@
+// spiritualresults.org — learning platform schema
+// Course-style LMS: modules → lessons → quizzes. User progress tracked per lesson.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────
+model User {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  name        String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  quizAttempts   QuizAttempt[]
+  reflections    Reflection[]
+
+  @@index([clerkUserId])
+}
+
+// ─── Content: Module → Lesson → Quiz ─────────────────────────────────────
+enum Tradition {
+  CHRISTIANITY
+  ISLAM
+  HINDUISM
+  BUDDHISM
+  JUDAISM
+  SUFISM
+  TAOISM
+  CONFUCIANISM
+  BAHAI
+  SHINTO
+  JAINISM
+  SIKHISM
+  PHILOSOPHY
+  COMPARATIVE
+}
+
+enum ModuleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Module {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  title       String
+  subtitle    String?
+  description String       @db.Text
+  // Source traditions this module draws from (Christianity, Buddhism, Sufism, etc.)
+  traditions  Tradition[]
+  // 1-5; rough difficulty / depth
+  difficulty  Int          @default(1)
+  // Estimated time in minutes to complete the module
+  estimatedMinutes Int     @default(30)
+  // For ordering on the browse page
+  sortOrder   Int          @default(0)
+  status      ModuleStatus @default(DRAFT)
+  // Where this content came from (Phase 2 AI generator populates this).
+  // JSON: { generator: "ai" | "human", sourceTexts: [...], prompt: "..." }
+  provenance  Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  publishedAt DateTime?
+
+  lessons     Lesson[]
+  enrollments Enrollment[]
+
+  @@index([slug])
+  @@index([status, sortOrder])
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  // Order within the module (1, 2, 3…)
+  order       Int
+  title       String
+  // Markdown body; the lesson reader renders this
+  body        String   @db.Text
+  // Optional reflection prompt at the end of the lesson
+  reflectionPrompt String? @db.Text
+  // Estimated time in minutes
+  estimatedMinutes Int  @default(10)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress    LessonProgress[]
+  reflections Reflection[]
+  // A lesson can optionally have a quiz; the quiz at the end of the module is
+  // typically attached to the LAST lesson, but any lesson may have one.
+  quiz        Quiz?
+
+  @@unique([moduleId, order])
+  @@index([moduleId])
+}
+
+model Quiz {
+  id        String     @id @default(cuid())
+  lessonId  String     @unique
+  lesson    Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title     String
+  // Pass threshold (0-100). Default 70%.
+  passScore Int        @default(70)
+  questions Question[]
+  attempts  QuizAttempt[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Question {
+  id           String   @id @default(cuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order        Int
+  prompt       String   @db.Text
+  // JSON array of choice strings, e.g. ["Compassion", "Pride", "Fear", "Apathy"]
+  choices      Json
+  // Index of the correct choice (0-based)
+  correctIndex Int
+  // Optional explanation shown after answering
+  explanation  String?  @db.Text
+
+  @@unique([quizId, order])
+  @@index([quizId])
+}
+
+// ─── User progress ────────────────────────────────────────────────────────
+enum EnrollmentStatus {
+  ENROLLED
+  COMPLETED
+  ABANDONED
+}
+
+model Enrollment {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId   String
+  module     Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  status     EnrollmentStatus @default(ENROLLED)
+  startedAt  DateTime         @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, moduleId])
+  @@index([userId])
+  @@index([moduleId])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+  // Time spent reading in seconds (best-effort, client-reported)
+  secondsSpent Int     @default(0)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId      String
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  // Score 0-100
+  score       Int
+  passed      Boolean
+  // JSON: array of { questionId, chosenIndex }
+  answers     Json
+  completedAt DateTime @default(now())
+
+  @@index([userId, quizId])
+}
+
+model Reflection {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, lessonId])
+}
