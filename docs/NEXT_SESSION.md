@@ -13,28 +13,44 @@ Read this first on next session start. Companion to [`CLAUDE_DESIGN_PROMPT.md`](
 - Phase 1 scaffold: landing, Clerk auth (standalone instance, not Adaptensor SSO), `/dashboard`, modules browse/detail, lesson reader, quiz UI, demo seed module ("Forgiveness Across the Wisdom Traditions").
 - Auth bug fix: local User now resolves by email when Clerk re-creates an OAuth identity (`src/lib/auth.ts`, commit `1a6f611`).
 - **Shrine MVP** — full editor with theme picker, 7 object primitives, drag-to-position, soundscape + visibility radios, persistence via `PUT /api/shrine` (commit `923b189`).
-- **Shrine Imagen integration** — `/api/shrine/generate` calls `imagen-4.0-ultra-generate-001`, uploads PNG to Vercel Blob, persists `generatedBgUrl` on the Shrine row. Editor Generate button is live with loading state, regenerate, and "Clear · use preset" (commit `a09d00e`, this session).
-
----
-
-## ✅ Prod env vars pushed (2026-05-20)
-
-`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `BLOB_READ_WRITE_TOKEN` are all on Vercel for production+preview+development. Redeploy `dpl_CD3GWWVDEfroMuPhKQGFb9t3AgBK` is live. CLI smoke confirmed landing 200, `/shrine` 307 (auth redirect), `/api/shrine/generate` 401 (auth-guarded). Final auth-required test (logging in and clicking Generate) still owed once Jamie has a moment in-browser.
+- **Shrine Imagen integration** — `/api/shrine/generate` calls `imagen-4.0-ultra-generate-001`, uploads PNG to Vercel Blob, persists `generatedBgUrl` on the Shrine row. Editor Generate button is live with loading state, regenerate, and "Clear · use preset" (commit `a09d00e`).
+- **Shrine social half — SHIPPED 2026-05-20.** Invites by link, guest view route, real-time chat + presence + chime, real-time kick on block, full permission gating (PRIVATE / INVITED / LINK). Live-verified on prod with 3 real test accounts. Plan: `C:\Users\jamie\.claude\plans\shrine-invites-and-chat.md`. Commits: `c2eb209`, `dd3eb6f`, `3caadc7`, `dd40377`, `cc4336c`.
 
 ---
 
 ## What's left until completion (priority order)
 
-### 1. Shrine invites + chat — the social half of the shrine
-**Scope:** the design vision is "two souls sharing a candlelit room." Today the room is private. To unlock that:
-- `/shrine/[username]` — guest view route, looks up shrine by username (need to add `username` to User, currently unique slug missing).
-- Invite-by-link flow (`/shrine/[username]?invite={token}` with single-use token in DB), invite-by-email (Resend).
-- Real-time chat strip — the `<ChatStrip>` in `ShrineRoom.tsx` is purely visual today. Wire Pusher or Supabase Realtime, persist messages, presence indicator wired to real socket events not the hardcoded `guest = null`.
-- Sound the chime when someone joins.
+### 1. Phase 5 — Invite-by-email via Resend
+The DB row + invite URL already get created when an email is filled in the editor's "Invite a friend" section. The actual send isn't wired yet.
 
-**Estimate:** ~2 sessions. Bigger because of the realtime infra decision + presence/permission edge cases.
+**To finish:**
+- **DNS first (manual, you):** verify `invites.spiritualresults.org` in Resend dashboard. Add SPF + DKIM records at the domain registrar. Wait for DNS propagation (~minutes to hours).
+- Install `resend@^6.12.3` and add `RESEND_API_KEY` to `.env.local` + Vercel.
+- Extend `POST /api/shrine/invite` to send via Resend when `email` field is present. Create a branded React Email at `src/emails/ShrineInvite.tsx`.
+- Test send to a personal Gmail; check DKIM headers pass.
 
-### 2. Phase 2 AI lesson generator — the LMS engine
+**Estimate:** ~half a session of code + however long DNS takes.
+
+### 2. Phase 7 — Lyria-generated soundscape + chime audio
+Currently the synthesized chime works (you confirmed it during the 2026-05-20 verification) but it's a 1.6s sine wave. Soundscape radios save the choice but nothing plays.
+
+**To finish:**
+- Generate 5 ambient loops (wind, bells, water, fire crackle, silence) + 1 temple bell chime via Lyria-3 Pro on the existing Gemini API key.
+- Host on Vercel Blob under `shrine-bg/audio/<name>.mp3`.
+- Render `<audio loop autoPlay={false}>` in ShrineRoom when `musicOn && soundscape !== 'silence'`.
+- Swap the Web Audio synthesized chime in `useShrineChannel` for an `<audio>` element pointing at the temple bell blob URL.
+
+**Estimate:** ~half a session.
+
+### 3. Polish items found during 2026-05-20 verification
+Small but visible UX warts. Worth bundling.
+
+- **Editor Save auto-navigates to `/shrine`.** Annoying for iterative testing (switch visibility → Save → bounced out of editor). Want "save and stay" — keep user on `/shrine/edit`, show a brief "Saved" toast or button-state, no `router.push`.
+- **Layout shifts when clicking Visibility radio.** Likely the InvitePanel async-refetching guests/invites — while waiting for the response the panel empties, page reflows, then re-fills. Fix: hold the panel's prior data during refetch, or render skeleton bars at the correct height.
+
+**Estimate:** ~20 min combined.
+
+### 4. Phase 2 AI lesson generator — the LMS engine
 **Scope:** the corpus exists (`c:\Adaptensor\Spiritual_Results\Library_1-100\`, Quran, Bahá'í) but nothing reads it.
 - pgvector extension on Neon, embed all 100+ source texts.
 - Admin role on `User` (not yet a field — Phase 2 prereq).
@@ -43,43 +59,58 @@ Read this first on next session start. Companion to [`CLAUDE_DESIGN_PROMPT.md`](
 
 **Estimate:** ~3 sessions. Vector setup + RAG plumbing + admin UI + content review pass.
 
-### 3. Soundscape audio
-Currently radio buttons store the choice but nothing plays. Add `<audio>` element to `ShrineRoom`, source 5 ambient loops (wind, bells, water, fire crackle, silence). Cheap if loops are royalty-free; could also generate via Lyria (`lyria-3-pro-preview` is on the Gemini API per the model list).
-
-**Estimate:** ~half a session.
-
-### 4. Journal + Goals (designed, not built)
+### 5. Journal + Goals (designed, not built)
 - `/journal`, `/journal/new`, `/journal/[id]` — private markdown entries.
 - `/goals` — three states (set / reflecting / released), soft outbound link to spiritualresults.ai.
 
 **Estimate:** ~1 session each.
 
-### 5. Quiz UX polish
+### 6. Quiz UX polish
 Design calls for contemplative tone ("5 of 5. Held with care." / "4 of 5. Take a breath…"), sage-check vs soft-amber dots, no bright red. Currently functional but jars against the rest of the brand.
 
 **Estimate:** ~half a session.
 
-### 6. AdaptGent helper
+### 7. AdaptGent helper
 Floating bottom-right button, deep gold (`#8B6A1F`), free for everyone, lesson-help only. Stub the API as a thin Anthropic Sonnet 4.6 call with a system prompt scoped to "explain this lesson, do not give general life advice."
 
 **Estimate:** ~half a session.
 
-### 7. Account dialog
+### 8. Account dialog
 Small modal off the avatar — email, sign out, delete account.
 
 **Estimate:** ~quick.
 
 ---
 
+## Known limitations of the shipped social half
+
+These aren't bugs; they're product/design boundaries worth knowing before users notice.
+
+- **Presence pill shows only one other person at a time.** The design was "two souls sharing a candlelit room." If a 3rd person joins, presence pill picks the first "other" alphabetically. A multi-user pill would need a different visual treatment.
+- **Candle/music toggle doesn't broadcast.** Host can toggle candle on/off and guests don't see it change live — only on next page load. This is by-design for v1; broadcasting host-state changes via the channel is a small follow-up if Jamie wants it.
+- **First chime may be silent.** Browser autoplay policy blocks AudioContext until user gesture. Once the user has clicked anywhere on the page, subsequent chimes work. Phase 7 audio swap won't fix this — it's a browser policy. The presence pill is the primary signal.
+- **Chime fires once per unique user per session.** A legit close-and-reopen of the other tab won't re-chime in this session. Page refresh resets the chime tracker. This is deliberate to avoid the loop bug we hit during testing.
+- **Stale data in the editor.** The InvitePanel only refetches on mount — if test2 redeems an invite while test1 has the editor open, test1 doesn't see the updated guest list until refresh. Acceptable for v1; could add WebSocket-driven UI updates later.
+
+---
+
 ## Reference
 
-- **Codebase**: `c:\Adaptensor\00spiritualresults\` — Next.js 16, Tailwind v4, Prisma 6, Neon, Clerk, Anthropic SDK, `@vercel/blob`, `@google/genai` (via REST, no SDK).
+- **Codebase**: `c:\Adaptensor\00spiritualresults\` — Next.js 16, Tailwind v4, Prisma 6, Neon, Clerk, Anthropic SDK, `@vercel/blob`, `@google/genai` (via REST, no SDK), `@supabase/supabase-js`.
 - **Repo**: `adaptensor/00spiritualresults` (public), main auto-deploys to Vercel.
 - **DB**: Neon project `spiritualresults`, `neondb_owner`, single DB shared by dev + prod.
 - **Clerk**: standalone production instance `spiritualresults.org`; dev is `well-gobbler-41.clerk.accounts.dev`.
+- **Supabase**: project `ucozhxqctrzieptuavfl.supabase.co`, Realtime-only (no DB use). Free tier. Keys in `.env.local` and Vercel as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (sb_publishable_), `SUPABASE_SERVICE_ROLE_KEY` (sb_secret_).
 - **Design source of truth**: [`docs/CLAUDE_DESIGN_PROMPT.md`](CLAUDE_DESIGN_PROMPT.md).
+- **Invites + chat plan**: `C:\Users\jamie\.claude\plans\shrine-invites-and-chat.md`.
 - **Memory entry**: `c:\Users\jamie\.claude\projects\c--Adaptensor\memory\project_spiritualresults.md`.
 
 ## Suggested first action next session
 
-Push the two env vars to Vercel + redeploy + smoke-test the prod shrine (15-min task). **Then** start on shrine invites + chat — that's the feature that turns a personal room into the product Jamie actually wants to ship: two souls sharing a candlelit space.
+Choose by appetite:
+
+- **15 minutes:** ship the two polish fixes (#3 above — save-and-stay, layout reflow). Easiest win, makes the editor feel professional.
+- **~1 session:** start Phase 5 (Resend email). DNS first, then code. Email invites complete the social-half experience.
+- **~3 sessions:** start Phase 2 (AI lesson generator). The LMS engine — the other half of what spiritualresults.org is supposed to be.
+
+Personal recommendation: ship the polish fixes first (15 min), then move to Phase 5 in parallel with DNS work, and use the freed time to start Phase 2 setup (pgvector extension on Neon, corpus embedding script). That gets you to feature-complete-MVP in 4-5 sessions.
