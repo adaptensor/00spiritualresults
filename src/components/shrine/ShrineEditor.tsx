@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ShrineRoom } from "./ShrineRoom";
 import { InvitePanel } from "./InvitePanel";
@@ -43,6 +43,13 @@ export function ShrineEditor({ initial }: Props) {
   const [generatedBgUrl, setGeneratedBgUrl] = useState<string | null>(initial.generatedBgUrl);
   const [saving, startSave] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (!justSaved) return;
+    const t = setTimeout(() => setJustSaved(false), 1800);
+    return () => clearTimeout(t);
+  }, [justSaved]);
 
   function moveObject(id: string, x: number, y: number) {
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, x, y } : o)));
@@ -94,7 +101,7 @@ export function ShrineEditor({ initial }: Props) {
         setSaveError(body.error ?? "Could not save.");
         return;
       }
-      router.push("/shrine");
+      setJustSaved(true);
       router.refresh();
     });
   }
@@ -180,13 +187,13 @@ export function ShrineEditor({ initial }: Props) {
             disabled={saving}
             className="rounded-full bg-[#B8893C] px-7 py-3 text-sm font-medium text-[#1F1810] transition hover:bg-[#A07728] disabled:cursor-default disabled:opacity-60"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : justSaved ? "Saved ✓" : "Save"}
           </button>
           <button
             onClick={() => router.push("/shrine")}
             className="rounded-full border border-[rgba(139,106,31,0.20)] bg-transparent px-5 py-3 text-sm text-[#5C4F3D]"
           >
-            Discard
+            Done
           </button>
         </div>
         {saveError && (

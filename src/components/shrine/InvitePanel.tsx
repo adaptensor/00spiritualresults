@@ -29,6 +29,7 @@ export function InvitePanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
   async function refresh() {
     const [iRes, gRes] = await Promise.all([
@@ -43,6 +44,7 @@ export function InvitePanel() {
       const data = await gRes.json();
       setGuests(data.guests);
     }
+    setInitialLoaded(true);
   }
 
   useEffect(() => {
@@ -104,7 +106,19 @@ export function InvitePanel() {
       </div>
       {error && <p className="text-xs text-[#A85C1B]">{error}</p>}
 
-      {invites.length > 0 && (
+      {/* Stable-height container so the panel doesn't reflow when data
+          finishes loading or refetches after an action. */}
+      <div className="flex flex-col gap-4 min-h-[52px]">
+
+      {!initialLoaded && (
+        <div
+          aria-busy="true"
+          className="h-[36px] rounded-lg"
+          style={{ background: "rgba(139,106,31,0.04)" }}
+        />
+      )}
+
+      {initialLoaded && invites.length > 0 && (
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-[#8A7A66]">
             Pending invites
@@ -138,7 +152,7 @@ export function InvitePanel() {
         </div>
       )}
 
-      {guests.length > 0 && (
+      {initialLoaded && guests.length > 0 && (
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-[#8A7A66]">
             Current guests
@@ -171,7 +185,7 @@ export function InvitePanel() {
         </div>
       )}
 
-      {invites.length === 0 && guests.length === 0 && (
+      {initialLoaded && invites.length === 0 && guests.length === 0 && (
         <p
           className="text-[12px] italic text-[#8A7A66]"
           style={{ fontFamily: "var(--font-serif)" }}
@@ -179,6 +193,8 @@ export function InvitePanel() {
           Generate a link or invite by email to share this shrine with one soul.
         </p>
       )}
+
+      </div>
     </div>
   );
 }
