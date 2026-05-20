@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getOrCreateLocalUser } from "@/lib/auth";
 import { getOrCreateShrine, parseObjects } from "@/lib/shrine/server";
 import { ShrineRoomToolbar } from "./ShrineRoomToolbar";
+import type { ShrineVisibility } from "@/lib/shrine/types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function ShrinePage() {
       shrineId={shrine.id}
       viewerId={user.id}
       viewerName={viewerName}
+      visibility={shrine.visibility as ShrineVisibility}
     />
   );
 }

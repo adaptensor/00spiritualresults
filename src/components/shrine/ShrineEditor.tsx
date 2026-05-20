@@ -181,6 +181,10 @@ export function ShrineEditor({ initial }: Props) {
           <InvitePanel />
         </EditorSection>
 
+        <EditorSection title="Conversation">
+          <ClearConversationButton />
+        </EditorSection>
+
         <div className="mt-4 flex gap-3 pb-8">
           <button
             onClick={save}
@@ -547,4 +551,50 @@ function ObjectManager({
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function ClearConversationButton() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  async function clear() {
+    const ok = window.confirm(
+      "Clear every message in this shrine's conversation? This cannot be undone.",
+    );
+    if (!ok) return;
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/shrine/chat", { method: "DELETE" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setResult(body.error || "Could not clear the conversation.");
+      } else if (body.cleared === 0) {
+        setResult("Already quiet — nothing to clear.");
+      } else {
+        setResult(
+          `Cleared ${body.cleared} ${body.cleared === 1 ? "message" : "messages"}.`,
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <button
+        onClick={clear}
+        disabled={busy}
+        className="rounded-full border border-[rgba(168,92,27,0.30)] bg-transparent px-4 py-2 text-[12px] text-[#A85C1B] transition hover:bg-[rgba(168,92,27,0.06)] disabled:opacity-50"
+      >
+        {busy ? "Clearing…" : "Clear conversation"}
+      </button>
+      <p className="mt-2 text-[11px] italic text-[#8A7A66]">
+        Wipes all chat for every guest. Useful before inviting someone new, or
+        before flipping the room private.
+      </p>
+      {result && <p className="mt-1 text-[11px] text-[#5E7148]">{result}</p>}
+    </div>
+  );
 }

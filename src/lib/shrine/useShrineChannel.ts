@@ -93,6 +93,13 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
       }
     });
 
+    // Host wiped the conversation from the editor. Drop every cached message
+    // and forget the dedupe ids so a fresh chat session can begin cleanly.
+    channel.on("broadcast", { event: "chat:clear" }, () => {
+      knownIdsRef.current.clear();
+      setMessages([]);
+    });
+
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState() as Record<
         string,

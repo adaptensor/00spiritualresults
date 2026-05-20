@@ -77,6 +77,39 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true, message: payload });
 }
 
+// Owner-only wipe of every chat row for this user's shrine. Used by the
+// editor's "Clear conversation" button so the host can start fresh before
+// inviting a new guest or flipping back to PRIVATE. Broadcasts chat:clear so
+// any currently-connected client drops its local message buffer in real time.
+export async function DELETE() {
+  const viewer = await getOrCreateLocalUser();
+  if (!viewer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const shrine = await db.shrine.findUnique({
+    where: { userId: viewer.id },
+    select: { id: true, userId: true },
+  });
+  if (!shrine) return NextResponse.json({ error: "Shrine not found" }, { status: 404 });
+
+  const { count } = await db.chatMessage.deleteMany({
+    where: { shrineId: shrine.id },
+  });
+
+  try {
+    const channel = getSupabaseAdmin().channel(`shrine:${shrine.userId}`);
+    await channel.send({
+      type: "broadcast",
+      event: "chat:clear",
+      payload: { clearedAt: new Date().toISOString() },
+    });
+    void channel.unsubscribe();
+  } catch (e) {
+    console.error("supabase broadcast failed (chat:clear)", e);
+  }
+
+  return NextResponse.json({ ok: true, cleared: count });
+}
+
 const QuerySchema = z.object({
   shrineId: z.string().cuid(),
   before: z.string().optional(),

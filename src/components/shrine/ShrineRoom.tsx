@@ -22,6 +22,10 @@ type ShrineRoomProps = {
   guest?: Guest;
   viewerId?: string;
   messages?: ChatMsg[];
+  // When false, the chat strip is hidden even if a channel is wired. Used
+  // when the host has set visibility=PRIVATE — the room is meant to feel
+  // contemplative-alone, and old chat bubbles break that mood.
+  chatEnabled?: boolean;
   onSendMessage?: (body: string) => Promise<void>;
   onToggleCandle?: () => void;
   onToggleMusic?: () => void;
@@ -42,6 +46,7 @@ export function ShrineRoom({
   guest = null,
   viewerId,
   messages,
+  chatEnabled = true,
   onSendMessage,
   onToggleCandle,
   onToggleMusic,
@@ -158,8 +163,9 @@ export function ShrineRoom({
       {/* presence — shows the other party when wired to real-time (Phase 6) */}
       {!editing && guest && <PresenceIndicator guest={guest} />}
 
-      {/* chat strip — only live when we have a real channel wired up */}
-      {!editing && onSendMessage && messages && (
+      {/* chat strip — only live when we have a real channel wired up AND
+          the host hasn't set the room PRIVATE. */}
+      {!editing && chatEnabled && onSendMessage && messages && (
         <ChatStrip
           expanded={chatExpanded}
           onToggle={() => setChatExpanded((v) => !v)}

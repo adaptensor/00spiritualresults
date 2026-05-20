@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShrineRoom } from "@/components/shrine/ShrineRoom";
-import type { ShrineObject } from "@/lib/shrine/types";
+import type { ShrineObject, ShrineVisibility } from "@/lib/shrine/types";
 import { useShrineChannel } from "@/lib/shrine/useShrineChannel";
 
 type Props = {
@@ -15,6 +15,7 @@ type Props = {
   shrineId: string;
   viewerId: string;
   viewerName: string;
+  visibility: ShrineVisibility;
 };
 
 export function ShrineRoomToolbar({
@@ -26,6 +27,7 @@ export function ShrineRoomToolbar({
   shrineId,
   viewerId,
   viewerName,
+  visibility,
 }: Props) {
   const router = useRouter();
   const [candleLit, setCandleLit] = useState(initialCandle);
@@ -72,6 +74,7 @@ export function ShrineRoomToolbar({
       guest={other}
       viewerId={viewerId}
       messages={messages}
+      chatEnabled={visibility !== "PRIVATE"}
       onSendMessage={send}
       onToggleCandle={toggleCandle}
       onToggleMusic={toggleMusic}
