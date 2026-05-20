@@ -42,3 +42,6 @@ yarn-error.log*
 # prisma
 prisma/dev.db
 prisma/dev.db-journal
+
+# design handoff — extracted folder is committed, raw zip is redundant
+/Spiritual Results.zip

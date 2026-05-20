@@ -37,6 +37,12 @@ export function AppHeader() {
           >
             Modules
           </Link>
+          <Link
+            href="/shrine"
+            className="text-[var(--color-parchment-deep)] hover:text-[var(--color-gold-soft)]"
+          >
+            Shrine
+          </Link>
           <UserButton afterSignOutUrl="/" />
         </nav>
       </div>

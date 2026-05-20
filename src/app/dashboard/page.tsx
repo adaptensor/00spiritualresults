@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { db } from "@/lib/db";
 import { getOrCreateLocalUser } from "@/lib/auth";
+import { getTheme } from "@/lib/shrine/themes";
 
 export const dynamic = "force-dynamic";
 
@@ -10,21 +11,19 @@ export default async function DashboardPage() {
   const user = await getOrCreateLocalUser();
   if (!user) redirect("/sign-in");
 
-  const enrollments = await db.enrollment.findMany({
-    where: { userId: user.id },
-    include: {
-      module: {
-        include: {
-          lessons: { select: { id: true } },
-        },
+  const [enrollments, lessonsCompleted, shrine] = await Promise.all([
+    db.enrollment.findMany({
+      where: { userId: user.id },
+      include: {
+        module: { include: { lessons: { select: { id: true } } } },
       },
-    },
-    orderBy: { startedAt: "desc" },
-  });
+      orderBy: { startedAt: "desc" },
+    }),
+    db.lessonProgress.count({ where: { userId: user.id } }),
+    db.shrine.findUnique({ where: { userId: user.id } }),
+  ]);
 
-  const lessonsCompleted = await db.lessonProgress.count({
-    where: { userId: user.id },
-  });
+  const shrineTheme = getTheme(shrine?.theme ?? "candlelit-chapel");
 
   return (
     <div className="min-h-screen bg-[var(--color-ink)]">
@@ -40,6 +39,54 @@ export default async function DashboardPage() {
               : `You’ve completed ${lessonsCompleted} lesson${lessonsCompleted === 1 ? "" : "s"} so far.`}
           </p>
         </div>
+
+        <section className="mb-12">
+          <Link
+            href="/shrine"
+            className="group relative block overflow-hidden rounded-2xl border transition"
+            style={{
+              height: 200,
+              background: shrineTheme.bg,
+              borderColor: "rgba(139,106,31,0.18)",
+              boxShadow: "0 1px 4px rgba(42,34,24,0.04)",
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 70% 65% at 50% 50%, transparent 50%, rgba(0,0,0,0.25) 100%)",
+                pointerEvents: "none",
+              }}
+            />
+            <div className="relative flex h-full flex-col items-center justify-center text-center">
+              <p
+                className="mb-1.5"
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 10,
+                  fontWeight: 500,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.6)",
+                }}
+              >
+                {shrineTheme.name}
+              </p>
+              <p
+                className="text-[#FAF7EE] transition group-hover:text-white"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 24,
+                  fontWeight: 300,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Enter your shrine →
+              </p>
+            </div>
+          </Link>
+        </section>
 
         <section className="mb-12">
           <h2 className="mb-6 text-2xl text-[var(--color-gold-soft)]">Your modules</h2>

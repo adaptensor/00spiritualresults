@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spiritual Results — Your Shrine</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: #0e0904;
+      font-family: 'Inter', sans-serif;
+      color: #2A2218;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: rgba(139,106,31,0.15); }
+    button { font-family: inherit; }
+    a:focus-visible, button:focus-visible {
+      outline: 2px solid rgba(139,106,31,0.45);
+      outline-offset: 2px; border-radius: 4px;
+    }
+
+    /* Candle flicker */
+    @keyframes candleFlicker {
+      0%, 100% { opacity: 0.85; transform: translateX(-50%) scaleX(1) scaleY(1); }
+      20% { opacity: 1; transform: translateX(-50%) scaleX(1.06) scaleY(1.1); }
+      40% { opacity: 0.7; transform: translateX(-50%) scaleX(0.94) scaleY(0.94); }
+      60% { opacity: 0.95; transform: translateX(-50%) scaleX(1.03) scaleY(1.06); }
+      80% { opacity: 0.78; transform: translateX(-50%) scaleX(0.97) scaleY(0.98); }
+    }
+
+    /* Incense smoke */
+    @keyframes smokeRise {
+      0% { opacity: 0.45; transform: translateY(0) translateX(0) scaleX(1); }
+      30% { opacity: 0.28; transform: translateY(-18px) translateX(5px) scaleX(1.3); }
+      60% { opacity: 0.12; transform: translateY(-38px) translateX(-3px) scaleX(1.5); }
+      100% { opacity: 0; transform: translateY(-62px) translateX(7px) scaleX(1.7); }
+    }
+
+    /* Sage presence pulse */
+    @keyframes sagePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(94,113,72,0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(94,113,72,0); }
+    }
+    .sage-pulse { animation: sagePulse 2.4s ease-in-out infinite; }
+
+    /* Gemini shimmer */
+    @keyframes geminiShimmer {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+    .gemini-shimmer { animation: geminiShimmer 1.8s ease-in-out infinite; }
+
+    /* Responsive editor */
+    @media (max-width: 768px) {
+      .shrine-editor-grid {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: 45vh 1fr !important;
+      }
+      .shrine-editor-grid > div:first-child { order: 2; }
+      .shrine-editor-grid > div:last-child { order: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="sr-shrine-scene.jsx"></script>
+  <script type="text/babel" src="sr-shrine-editor.jsx"></script>
+
+  <script type="text/babel">
+    const SHRINE_TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "viewMode": "host",
+      "startInEditor": false
+    }/*EDITMODE-END*/;
+    window.SHRINE_TWEAK_DEFAULTS = SHRINE_TWEAK_DEFAULTS;
+
+    /* ── Default shrine objects ── */
+    const DEFAULT_OBJECTS = [
+      { id: 'obj-candle', type: 'candle', x: 50, y: 52, props: { lit: true, scale: 1.3 } },
+      { id: 'obj-parchment', type: 'parchment', x: 30, y: 55, props: { text: 'Be still, and know.', scale: 0.9 } },
+      { id: 'obj-frame', type: 'frame', x: 68, y: 42, props: { scale: 1 } },
+      { id: 'obj-flower', type: 'flower', x: 55, y: 68, props: { scale: 1.1 } },
+      { id: 'obj-incense', type: 'incense', x: 42, y: 62, props: { scale: 1 } },
+    ];
+
+    function ShrineApp() {
+      const [tweaks, setTweak] = useTweaks(window.SHRINE_TWEAK_DEFAULTS);
+
+      /* ── Shrine state ── */
+      const [mode, setMode] = React.useState('room'); // 'room' or 'editor'
+      const [theme, setTheme] = React.useState('candlelit-chapel');
+      const [objects, setObjects] = React.useState(DEFAULT_OBJECTS.map(o => ({...o, props: {...o.props}})));
+      const [candleLit, setCandleLit] = React.useState(true);
+      const [musicOn, setMusicOn] = React.useState(false);
+      const [soundscape, setSoundscape] = React.useState('silence');
+      const [visibility, setVisibility] = React.useState('invited');
+      const [selectedObj, setSelectedObj] = React.useState(null);
+
+      const isHost = tweaks.viewMode === 'host';
+      const guest = { name: 'Maya', initial: 'M' }; // MOCK
+
+      // Start in editor if tweak says so
+      React.useEffect(() => {
+        if (tweaks.startInEditor) setMode('editor');
+      }, []);
+
+      const moveObject = React.useCallback((id, x, y) => {
+        setObjects(prev => prev.map(o => o.id === id ? { ...o, x, y } : o));
+      }, []);
+
+      const addObject = React.useCallback((type) => {
+        const id = `obj-${type}-${Date.now()}`;
+        const defaultProps = {};
+        if (type === 'candle') defaultProps.lit = true;
+        if (type === 'parchment') defaultProps.text = 'A sacred passage.';
+        if (type === 'placard') defaultProps.word = 'Peace';
+        defaultProps.scale = 1;
+        setObjects(prev => [...prev, {
+          id, type, x: 45 + Math.random() * 10, y: 45 + Math.random() * 10, props: defaultProps,
+        }]);
+      }, []);
+
+      const removeObject = React.useCallback((id) => {
+        setObjects(prev => prev.filter(o => o.id !== id));
+      }, []);
+
+      const updateObjectProps = React.useCallback((id, newProps) => {
+        setObjects(prev => prev.map(o =>
+          o.id === id ? { ...o, props: { ...o.props, ...newProps } } : o
+        ));
+      }, []);
+
+      if (mode === 'editor') {
+        return (
+          <ShrineEditor
+            theme={theme} objects={objects}
+            soundscape={soundscape} visibility={visibility}
+            onChangeTheme={setTheme}
+            onAddObject={addObject}
+            onRemoveObject={removeObject}
+            onUpdateObjectProps={updateObjectProps}
+            onChangeSoundscape={setSoundscape}
+            onChangeVisibility={setVisibility}
+            onSave={() => setMode('room')}
+            onDiscard={() => setMode('room')}
+            onGenerate={(userInput) => {
+              // MOCK: In production, call Gemini API here
+              // For now, cycle to next theme to simulate generation
+              const themes = window.THEMES;
+              const idx = themes.findIndex(t => t.id === theme);
+              setTheme(themes[(idx + 1) % themes.length].id);
+            }}
+          />
+        );
+      }
+
+      return (
+        <div style={{ height: '100vh', position: 'relative' }}>
+          <ShrineRoom
+            theme={theme} objects={objects}
+            isHost={isHost}
+            guest={guest}
+            candleLit={candleLit} musicOn={musicOn}
+            editing={false}
+            onToggleCandle={() => setCandleLit(!candleLit)}
+            onToggleMusic={() => setMusicOn(!musicOn)}
+            onEdit={() => setMode('editor')}
+            onLeave={() => { window.location.href = 'Dashboard.html'; }}
+            onMoveObject={moveObject}
+            onSelectObject={setSelectedObj}
+            selectedObj={selectedObj}
+          />
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection label="View">
+              <TweakRadio label="Perspective" value={tweaks.viewMode}
+                options={[
+                  { value: 'host', label: 'Host' },
+                  { value: 'guest', label: 'Guest' },
+                ]}
+                onChange={v => setTweak('viewMode', v)} />
+            </TweakSection>
+            <TweakSection label="Quick theme">
+              <TweakSelect label="Theme" value={theme}
+                options={window.THEMES.map(t => ({ value: t.id, label: t.name }))}
+                onChange={v => setTheme(v)} />
+            </TweakSection>
+            <TweakSection label="Actions">
+              <TweakButton label="Open editor" onClick={() => setMode('editor')} />
+            </TweakSection>
+          </TweaksPanel>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ShrineApp />);
+  </script>
+</body>
+</html>

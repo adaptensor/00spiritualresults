@@ -55,3 +55,42 @@ h1, h2, h3, h4 {
 .prose-spiritual em { color: var(--color-gold-soft); }
 .prose-spiritual ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1.25rem; }
 .prose-spiritual ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 1.25rem; }
+
+/* ── Shrine animations ──────────────────────────────────────────────────── */
+@keyframes candleFlicker {
+  0%, 100% { opacity: 1; transform: scaleY(1) scaleX(1); }
+  25%      { opacity: 0.82; transform: scaleY(0.95) scaleX(1.04); }
+  50%      { opacity: 0.92; transform: scaleY(1.05) scaleX(0.98); }
+  75%      { opacity: 0.74; transform: scaleY(0.98) scaleX(1.02); }
+}
+@keyframes smokeRise {
+  0%   { transform: translate(-50%, 0) scaleX(1); opacity: 0.45; }
+  100% { transform: translate(-50%, -62px) scaleX(1.7); opacity: 0; }
+}
+@keyframes sagePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(94, 113, 72, 0.55); }
+  50%      { box-shadow: 0 0 0 6px rgba(94, 113, 72, 0); }
+}
+@keyframes geminiShimmer {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.15); }
+}
+@keyframes fadeInPhrase {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.shrine-candle-flame { animation: candleFlicker 2.5s ease-in-out infinite; filter: blur(0.5px); }
+.shrine-smoke        { animation: smokeRise 2.4s ease-out infinite; }
+.shrine-sage-pulse   { animation: sagePulse 2.4s ease-in-out infinite; }
+.shrine-gemini-shimmer { animation: geminiShimmer 1.8s ease-in-out infinite; }
+
+.shrine-editor-grid {
+  grid-template-columns: minmax(300px, 40%) 1fr;
+}
+@media (max-width: 768px) {
+  .shrine-editor-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 45vh 1fr;
+  }
+}

@@ -25,8 +25,42 @@ model User {
   lessonProgress LessonProgress[]
   quizAttempts   QuizAttempt[]
   reflections    Reflection[]
+  shrine         Shrine?
 
   @@index([clerkUserId])
+}
+
+// ─── Shrine ───────────────────────────────────────────────────────────────
+// Each user has exactly one Shrine — the personal contemplative room.
+// Theme is one of the 7 preset IDs (candlelit-chapel, forest-grove, …).
+// Objects is a JSON array shaped like:
+//   [{ id: string, type: 'candle'|'parchment'|'frame'|'flower'|'beads'|'incense'|'placard',
+//      x: number /* 0-100 */, y: number /* 0-100 */,
+//      props: { lit?: boolean, text?: string, word?: string } }]
+// generatedBgUrl + generatedPrompt populated by /api/shrine/generate once Gemini
+// is wired (POST stub returns null URL for now).
+enum ShrineVisibility {
+  INVITED
+  LINK
+  PRIVATE
+}
+
+model Shrine {
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme           String           @default("candlelit-chapel")
+  objects         Json             @default("[]")
+  soundscape      String           @default("silence")
+  visibility      ShrineVisibility @default(INVITED)
+  candleLit       Boolean          @default(true)
+  musicOn         Boolean          @default(false)
+  generatedBgUrl  String?
+  generatedPrompt String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([userId])
 }
 
 // ─── Content: Module → Lesson → Quiz ─────────────────────────────────────
