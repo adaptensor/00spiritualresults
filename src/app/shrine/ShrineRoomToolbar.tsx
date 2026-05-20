@@ -63,6 +63,15 @@ export function ShrineRoomToolbar({
     }).catch(() => {});
   }
 
+  // Host clicked X. Broadcast room:closed so any connected guest is sent
+  // home, then navigate. Best-effort: if the API call fails we still leave.
+  async function leave() {
+    if (!isPrivate) {
+      await fetch("/api/shrine/leave", { method: "POST" }).catch(() => {});
+    }
+    router.push("/dashboard");
+  }
+
   // When candle is toggled off via the global toggle, dim every candle object too.
   const projectedObjects = objects.map((o) =>
     o.type === "candle" ? { ...o, props: { ...o.props, lit: candleLit } } : o,
@@ -84,6 +93,7 @@ export function ShrineRoomToolbar({
       onToggleCandle={toggleCandle}
       onToggleMusic={toggleMusic}
       onEdit={() => router.push("/shrine/edit")}
+      onLeave={leave}
     />
   );
 }

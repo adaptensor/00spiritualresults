@@ -30,6 +30,9 @@ type ShrineRoomProps = {
   onToggleCandle?: () => void;
   onToggleMusic?: () => void;
   onEdit?: () => void;
+  // When supplied (host only), the X button calls this instead of routing
+  // directly to /dashboard, so the host can broadcast room:closed first.
+  onLeave?: () => void;
   onMoveObject?: (id: string, x: number, y: number) => void;
   onSelectObject?: (id: string | null) => void;
 };
@@ -51,6 +54,7 @@ export function ShrineRoom({
   onToggleCandle,
   onToggleMusic,
   onEdit,
+  onLeave,
   onMoveObject,
   onSelectObject,
 }: ShrineRoomProps) {
@@ -145,6 +149,7 @@ export function ShrineRoom({
           onToggleCandle={onToggleCandle}
           onToggleMusic={onToggleMusic}
           onEdit={onEdit}
+          onLeave={onLeave}
         />
       )}
 
@@ -252,6 +257,7 @@ type ShrineControlsProps = {
   onToggleCandle?: () => void;
   onToggleMusic?: () => void;
   onEdit?: () => void;
+  onLeave?: () => void;
 };
 
 function ShrineControls({
@@ -261,7 +267,13 @@ function ShrineControls({
   onToggleCandle,
   onToggleMusic,
   onEdit,
+  onLeave,
 }: ShrineControlsProps) {
+  const leaveBtn: { icon: React.ReactNode; label: string; action?: () => void; href?: string } =
+    onLeave
+      ? { icon: <X size={18} strokeWidth={1.5} />, label: "Close the room", action: onLeave }
+      : { icon: <X size={18} strokeWidth={1.5} />, label: "Leave", href: "/dashboard" };
+
   const btns: Array<{
     icon: React.ReactNode;
     label: string;
@@ -273,7 +285,7 @@ function ShrineControls({
     { icon: <Music size={18} strokeWidth={1.5} />, label: musicOn ? "Sound on" : "Sound off", action: onToggleMusic, active: musicOn },
     ...(isHost ? [{ icon: <UserPlus size={18} strokeWidth={1.5} />, label: "Invite a friend", href: "/shrine/edit" }] : []),
     ...(isHost ? [{ icon: <Pencil size={18} strokeWidth={1.5} />, label: "Edit room", action: onEdit }] : []),
-    { icon: <X size={18} strokeWidth={1.5} />, label: "Leave", href: "/dashboard" },
+    leaveBtn,
   ];
 
   return (
