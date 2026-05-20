@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getOrCreateLocalUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 // DELETE /api/shrine/guests/[id]  → host blocks a previously-admitted guest.
-// Soft-block via blockedAt. The guest's view of /shrine/[username] will 404
-// on next visit. Phase 6 adds a real-time kick broadcast on top of this.
+// Soft-block via blockedAt and broadcast a 'kick' event so the guest's
+// currently-open tab redirects immediately. On next navigation the gate
+// itself enforces the block by returning 404.
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getOrCreateLocalUser();
@@ -24,6 +26,18 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     where: { id },
     data: { blockedAt: new Date() },
   });
+
+  try {
+    const channel = getSupabaseAdmin().channel(`shrine:${user.id}`);
+    await channel.send({
+      type: "broadcast",
+      event: "kick",
+      payload: { userId: guest.guestId },
+    });
+    void channel.unsubscribe();
+  } catch (e) {
+    console.error("supabase kick broadcast failed", e);
+  }
 
   return NextResponse.json({ ok: true });
 }

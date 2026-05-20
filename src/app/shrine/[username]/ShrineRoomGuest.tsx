@@ -2,10 +2,12 @@
 
 import { ShrineRoom } from "@/components/shrine/ShrineRoom";
 import type { ShrineObject } from "@/lib/shrine/types";
+import { useShrineChannel } from "@/lib/shrine/useShrineChannel";
 
 // Read-only client wrapper rendered to viewers who are NOT the shrine owner.
-// No candle/music mutation — guests cannot toggle host state. Real-time
-// presence + chat get wired in Phase 6; for now the room is just visible.
+// Guests cannot toggle candle/music. Realtime presence + chat come from the
+// useShrineChannel hook; the host is shown as ambient initial presence so the
+// guest does not feel like they walked into an empty room.
 
 type Props = {
   themeId: string;
@@ -13,7 +15,11 @@ type Props = {
   candleLit: boolean;
   musicOn: boolean;
   generatedBgUrl: string | null;
+  shrineId: string;
+  ownerId: string;
   hostName: string;
+  viewerId: string;
+  viewerName: string;
 };
 
 export function ShrineRoomGuest({
@@ -22,16 +28,29 @@ export function ShrineRoomGuest({
   candleLit,
   musicOn,
   generatedBgUrl,
+  shrineId,
+  ownerId,
   hostName,
+  viewerId,
+  viewerName,
 }: Props) {
   const projectedObjects = objects.map((o) =>
     o.type === "candle" ? { ...o, props: { ...o.props, lit: candleLit } } : o,
   );
 
-  // The host is implicitly present in their own room — surface that to the
-  // guest as the initial presence indicator. Phase 6 will replace this with
-  // real Supabase presence state.
-  const initial = (hostName || "?").charAt(0).toUpperCase();
+  const { messages, other, send } = useShrineChannel({
+    shrineId,
+    ownerId,
+    viewer: { id: viewerId, name: viewerName },
+  });
+
+  // If real presence has resolved someone in the room, prefer that; otherwise
+  // fall back to "the host's room" as ambient presence so the room feels held.
+  const guest =
+    other ??
+    (hostName
+      ? { name: hostName, initial: (hostName || "?").charAt(0).toUpperCase() }
+      : null);
 
   return (
     <ShrineRoom
@@ -41,7 +60,10 @@ export function ShrineRoomGuest({
       candleLit={candleLit}
       musicOn={musicOn}
       generatedBgUrl={generatedBgUrl}
-      guest={{ name: hostName, initial }}
+      guest={guest}
+      viewerId={viewerId}
+      messages={messages}
+      onSendMessage={send}
     />
   );
 }

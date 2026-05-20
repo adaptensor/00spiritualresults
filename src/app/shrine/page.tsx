@@ -12,6 +12,8 @@ export default async function ShrinePage() {
   const shrine = await getOrCreateShrine(user.id);
   const objects = parseObjects(shrine.objects);
 
+  const viewerName = user.name || user.username || "you";
+
   return (
     <ShrineRoomToolbar
       themeId={shrine.theme}
@@ -19,6 +21,9 @@ export default async function ShrinePage() {
       candleLit={shrine.candleLit}
       musicOn={shrine.musicOn}
       generatedBgUrl={shrine.generatedBgUrl}
+      shrineId={shrine.id}
+      viewerId={user.id}
+      viewerName={viewerName}
     />
   );
 }

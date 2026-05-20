@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShrineRoom } from "@/components/shrine/ShrineRoom";
 import type { ShrineObject } from "@/lib/shrine/types";
+import { useShrineChannel } from "@/lib/shrine/useShrineChannel";
 
 type Props = {
   themeId: string;
@@ -11,6 +12,9 @@ type Props = {
   candleLit: boolean;
   musicOn: boolean;
   generatedBgUrl: string | null;
+  shrineId: string;
+  viewerId: string;
+  viewerName: string;
 };
 
 export function ShrineRoomToolbar({
@@ -19,10 +23,18 @@ export function ShrineRoomToolbar({
   candleLit: initialCandle,
   musicOn: initialMusic,
   generatedBgUrl,
+  shrineId,
+  viewerId,
+  viewerName,
 }: Props) {
   const router = useRouter();
   const [candleLit, setCandleLit] = useState(initialCandle);
   const [musicOn, setMusicOn] = useState(initialMusic);
+  const { messages, other, send } = useShrineChannel({
+    shrineId,
+    ownerId: viewerId, // host: ownerId === viewerId
+    viewer: { id: viewerId, name: viewerName },
+  });
 
   async function toggleCandle() {
     const next = !candleLit;
@@ -57,6 +69,10 @@ export function ShrineRoomToolbar({
       candleLit={candleLit}
       musicOn={musicOn}
       generatedBgUrl={generatedBgUrl}
+      guest={other}
+      viewerId={viewerId}
+      messages={messages}
+      onSendMessage={send}
       onToggleCandle={toggleCandle}
       onToggleMusic={toggleMusic}
       onEdit={() => router.push("/shrine/edit")}

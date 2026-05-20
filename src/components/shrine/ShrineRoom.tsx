@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Flame, Music, UserPlus, Pencil, X } from "lucide-react";
+import { Flame, Music, UserPlus, Pencil, X, Send } from "lucide-react";
 import { OBJECT_RENDERERS } from "./ScenePrimitives";
 import { getTheme } from "@/lib/shrine/themes";
 import type { ShrineObject } from "@/lib/shrine/types";
+import type { ChatMsg } from "@/lib/shrine/useShrineChannel";
 
 export type Guest = { name: string; initial: string } | null;
 
@@ -19,6 +20,9 @@ type ShrineRoomProps = {
   generatedBgUrl?: string | null;
   selectedObjectId?: string | null;
   guest?: Guest;
+  viewerId?: string;
+  messages?: ChatMsg[];
+  onSendMessage?: (body: string) => Promise<void>;
   onToggleCandle?: () => void;
   onToggleMusic?: () => void;
   onEdit?: () => void;
@@ -36,6 +40,9 @@ export function ShrineRoom({
   generatedBgUrl = null,
   selectedObjectId = null,
   guest = null,
+  viewerId,
+  messages,
+  onSendMessage,
   onToggleCandle,
   onToggleMusic,
   onEdit,
@@ -151,8 +158,16 @@ export function ShrineRoom({
       {/* presence — shows the other party when wired to real-time (Phase 6) */}
       {!editing && guest && <PresenceIndicator guest={guest} />}
 
-      {/* chat strip stub (visual only — full chat ships with invites session) */}
-      {!editing && <ChatStrip expanded={chatExpanded} onToggle={() => setChatExpanded((v) => !v)} />}
+      {/* chat strip — only live when we have a real channel wired up */}
+      {!editing && onSendMessage && messages && (
+        <ChatStrip
+          expanded={chatExpanded}
+          onToggle={() => setChatExpanded((v) => !v)}
+          messages={messages}
+          viewerId={viewerId}
+          onSend={onSendMessage}
+        />
+      )}
     </div>
   );
 }
@@ -354,12 +369,40 @@ function PresenceIndicator({ guest }: { guest: { name: string; initial: string }
   );
 }
 
-/* ── Chat strip stub ────────────────────────────────────────────────── */
-// Full real-time chat ships with the invites session. For now this is a
-// purely visual pill that expands to a placeholder card.
+/* ── Chat strip ─────────────────────────────────────────────────────── */
+// Live chat for the two-soul room. Subscribes via the useShrineChannel hook
+// (called by the parent wrapper) and renders {messages, send}.
 
-function ChatStrip({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+type ChatStripProps = {
+  expanded: boolean;
+  onToggle: () => void;
+  messages: ChatMsg[];
+  viewerId?: string;
+  onSend: (body: string) => Promise<void>;
+};
+
+function ChatStrip({ expanded, onToggle, messages, viewerId, onSend }: ChatStripProps) {
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length]);
+
+  async function submit() {
+    const text = draft.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setDraft("");
+    await onSend(text);
+    setSending(false);
+  }
+
   if (!expanded) {
+    const unread = messages.length;
     return (
       <button
         onClick={onToggle}
@@ -380,10 +423,11 @@ function ChatStrip({ expanded, onToggle }: { expanded: boolean; onToggle: () => 
           color: "#5C4F3D",
         }}
       >
-        say something
+        {unread > 0 ? `${unread} ${unread === 1 ? "message" : "messages"}` : "say something"}
       </button>
     );
   }
+
   return (
     <div
       style={{
@@ -391,12 +435,15 @@ function ChatStrip({ expanded, onToggle }: { expanded: boolean; onToggle: () => 
         bottom: 24,
         right: 24,
         zIndex: 30,
-        width: "min(360px, calc(100vw - 48px))",
-        background: "rgba(255,255,255,0.88)",
+        width: "min(380px, calc(100vw - 48px))",
+        maxHeight: "min(60vh, 520px)",
+        background: "rgba(255,255,255,0.92)",
         backdropFilter: "blur(14px)",
         borderRadius: 18,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
         overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <div
@@ -405,11 +452,11 @@ function ChatStrip({ expanded, onToggle }: { expanded: boolean; onToggle: () => 
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          borderBottom: "1px solid rgba(139,106,31,0.06)",
+          borderBottom: "1px solid rgba(139,106,31,0.08)",
         }}
       >
         <span style={{ fontFamily: "var(--font-sans)", fontSize: 13, color: "#5C4F3D" }}>
-          Quiet
+          {messages.length === 0 ? "Quiet" : "Together"}
         </span>
         <button
           onClick={onToggle}
@@ -427,18 +474,117 @@ function ChatStrip({ expanded, onToggle }: { expanded: boolean; onToggle: () => 
         </button>
       </div>
       <div
+        ref={scrollRef}
         style={{
-          padding: "22px 18px",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: 14,
-          color: "#8A7A66",
-          textAlign: "center",
-          lineHeight: 1.6,
+          flex: 1,
+          overflowY: "auto",
+          padding: "14px 18px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
         }}
       >
-        Inviting a friend in to talk is coming soon.
+        {messages.length === 0 ? (
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              color: "#8A7A66",
+              textAlign: "center",
+              padding: "20px 0",
+              lineHeight: 1.6,
+            }}
+          >
+            The room is quiet. Say something kind.
+          </div>
+        ) : (
+          messages.map((m) => {
+            const mine = m.senderId === viewerId;
+            return (
+              <div
+                key={m.id}
+                style={{
+                  alignSelf: mine ? "flex-end" : "flex-start",
+                  maxWidth: "80%",
+                  background: mine ? "rgba(184,137,60,0.16)" : "rgba(139,106,31,0.06)",
+                  color: "#3D3326",
+                  padding: "8px 13px",
+                  borderRadius: 14,
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 13.5,
+                  lineHeight: 1.5,
+                }}
+              >
+                {!mine && (
+                  <div
+                    style={{
+                      fontSize: 10.5,
+                      color: "#8A7A66",
+                      marginBottom: 2,
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {m.senderName}
+                  </div>
+                )}
+                {m.body}
+              </div>
+            );
+          })
+        )}
       </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+        style={{
+          display: "flex",
+          gap: 8,
+          padding: "10px 12px",
+          borderTop: "1px solid rgba(139,106,31,0.08)",
+        }}
+      >
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Speak softly…"
+          maxLength={1000}
+          style={{
+            flex: 1,
+            border: "1px solid rgba(139,106,31,0.16)",
+            background: "rgba(255,255,255,0.7)",
+            borderRadius: 100,
+            padding: "8px 14px",
+            fontFamily: "var(--font-sans)",
+            fontSize: 13,
+            color: "#3D3326",
+            outline: "none",
+          }}
+        />
+        <button
+          type="submit"
+          disabled={!draft.trim() || sending}
+          aria-label="Send"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "none",
+            background: "#8B6A1F",
+            color: "#F5EDD9",
+            cursor: draft.trim() && !sending ? "pointer" : "default",
+            opacity: draft.trim() && !sending ? 1 : 0.5,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Send size={15} strokeWidth={2} />
+        </button>
+      </form>
     </div>
   );
 }

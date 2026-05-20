@@ -97,6 +97,7 @@ export default async function ShrineGuestPage({ params, searchParams }: PageProp
   }
 
   const objects = parseObjects(owner.shrine.objects);
+  const viewerName = viewer.name || viewer.username || "a visitor";
 
   return (
     <ShrineRoomGuest
@@ -105,7 +106,11 @@ export default async function ShrineGuestPage({ params, searchParams }: PageProp
       candleLit={owner.shrine.candleLit}
       musicOn={owner.shrine.musicOn}
       generatedBgUrl={owner.shrine.generatedBgUrl}
+      shrineId={owner.shrine.id}
+      ownerId={owner.id}
       hostName={hostNameOf(owner)}
+      viewerId={viewer.id}
+      viewerName={viewerName}
     />
   );
 }
