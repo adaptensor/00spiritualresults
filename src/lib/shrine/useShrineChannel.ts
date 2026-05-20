@@ -93,6 +93,12 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
       }
     });
 
+    // Host flipped the room to PRIVATE while we were still subscribed. Send
+    // everyone home — the gate will 404 them on any subsequent navigation.
+    channel.on("broadcast", { event: "room:closed" }, () => {
+      window.location.href = "/dashboard";
+    });
+
     // Host wiped the conversation from the editor. Drop every cached message
     // and forget the dedupe ids so a fresh chat session can begin cleanly.
     channel.on("broadcast", { event: "chat:clear" }, () => {

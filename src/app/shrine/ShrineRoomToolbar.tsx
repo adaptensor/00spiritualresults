@@ -32,10 +32,15 @@ export function ShrineRoomToolbar({
   const router = useRouter();
   const [candleLit, setCandleLit] = useState(initialCandle);
   const [musicOn, setMusicOn] = useState(initialMusic);
+
+  // In PRIVATE mode the room is meant to feel contemplative-alone — the host
+  // does not join the realtime channel at all. No presence, no chime, no
+  // chat strip even if a guest is somehow still subscribed from before.
+  const isPrivate = visibility === "PRIVATE";
   const { messages, other, send } = useShrineChannel({
     shrineId,
     ownerId: viewerId, // host: ownerId === viewerId
-    viewer: { id: viewerId, name: viewerName },
+    viewer: isPrivate ? null : { id: viewerId, name: viewerName },
   });
 
   async function toggleCandle() {
@@ -74,7 +79,7 @@ export function ShrineRoomToolbar({
       guest={other}
       viewerId={viewerId}
       messages={messages}
-      chatEnabled={visibility !== "PRIVATE"}
+      chatEnabled={!isPrivate}
       onSendMessage={send}
       onToggleCandle={toggleCandle}
       onToggleMusic={toggleMusic}
