@@ -7,21 +7,35 @@ import { getTheme } from "@/lib/shrine/themes";
 
 export const dynamic = "force-dynamic";
 
+async function trace<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string; meta?: unknown };
+    console.error(
+      `DASHBOARD_QUERY_FAIL label=${label} code=${err.code ?? "?"} msg=${err.message?.slice(0, 400) ?? "?"} meta=${JSON.stringify(err.meta)?.slice(0, 200) ?? "?"}`
+    );
+    throw e;
+  }
+}
+
 export default async function DashboardPage() {
-  const user = await getOrCreateLocalUser();
+  const user = await trace("getOrCreateLocalUser", () => getOrCreateLocalUser());
   if (!user) redirect("/sign-in");
 
-  const [enrollments, lessonsCompleted, shrine] = await Promise.all([
+  const enrollments = await trace("enrollment.findMany", () =>
     db.enrollment.findMany({
       where: { userId: user.id },
-      include: {
-        module: { include: { lessons: { select: { id: true } } } },
-      },
+      include: { module: { include: { lessons: { select: { id: true } } } } },
       orderBy: { startedAt: "desc" },
-    }),
-    db.lessonProgress.count({ where: { userId: user.id } }),
-    db.shrine.findUnique({ where: { userId: user.id } }),
-  ]);
+    })
+  );
+  const lessonsCompleted = await trace("lessonProgress.count", () =>
+    db.lessonProgress.count({ where: { userId: user.id } })
+  );
+  const shrine = await trace("shrine.findUnique", () =>
+    db.shrine.findUnique({ where: { userId: user.id } })
+  );
 
   const shrineTheme = getTheme(shrine?.theme ?? "candlelit-chapel");
 
