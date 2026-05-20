@@ -39,6 +39,7 @@ export function ShrineEditor({ initial }: Props) {
   const [soundscape, setSoundscape] = useState<Soundscape>(initial.soundscape);
   const [visibility, setVisibility] = useState<ShrineVisibility>(initial.visibility);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [generatedBgUrl, setGeneratedBgUrl] = useState<string | null>(initial.generatedBgUrl);
   const [saving, startSave] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -132,7 +133,12 @@ export function ShrineEditor({ initial }: Props) {
         </EditorSection>
 
         <EditorSection title="Generate with Gemini">
-          <GeminiPromptSection theme={theme} />
+          <GeminiPromptSection
+            theme={theme}
+            generatedBgUrl={generatedBgUrl}
+            onGenerated={setGeneratedBgUrl}
+            onCleared={() => setGeneratedBgUrl(null)}
+          />
         </EditorSection>
 
         <EditorSection title="Objects">
@@ -192,7 +198,7 @@ export function ShrineEditor({ initial }: Props) {
           editing
           candleLit={initial.candleLit}
           musicOn={initial.musicOn}
-          generatedBgUrl={initial.generatedBgUrl}
+          generatedBgUrl={generatedBgUrl}
           selectedObjectId={selectedObjectId}
           onMoveObject={moveObject}
           onSelectObject={setSelectedObjectId}
@@ -318,11 +324,58 @@ function ThemePicker({
   );
 }
 
-function GeminiPromptSection({ theme }: { theme: string }) {
+function GeminiPromptSection({
+  theme,
+  generatedBgUrl,
+  onGenerated,
+  onCleared,
+}: {
+  theme: string;
+  generatedBgUrl: string | null;
+  onGenerated: (url: string) => void;
+  onCleared: () => void;
+}) {
   const [userInput, setUserInput] = useState("");
   const [showPrompt, setShowPrompt] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fullPrompt = buildGeminiPrompt(userInput, theme);
   const themeName = getTheme(theme).name;
+
+  async function generate() {
+    setError(null);
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/shrine/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: userInput.trim() || undefined,
+          theme,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.imageUrl) {
+        setError(body.error ?? "Generation failed. Try a different description.");
+        return;
+      }
+      onGenerated(body.imageUrl);
+    } catch {
+      setError("Network error. Check your connection and try again.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function clearBg() {
+    setError(null);
+    const res = await fetch("/api/shrine/generate", { method: "DELETE" });
+    if (res.ok) {
+      onCleared();
+    } else {
+      setError("Could not clear the generated background.");
+    }
+  }
 
   return (
     <div>
@@ -331,18 +384,32 @@ function GeminiPromptSection({ theme }: { theme: string }) {
         onChange={(e) => setUserInput(e.target.value)}
         placeholder="Describe your ideal sanctuary… e.g. 'A quiet stone chapel with morning light through stained glass'"
         rows={3}
-        className="w-full rounded-xl border border-[rgba(139,106,31,0.20)] bg-[#FAF7EE] px-3.5 py-3 text-[13px] text-[#2A2218] outline-none"
+        disabled={generating}
+        className="w-full rounded-xl border border-[rgba(139,106,31,0.20)] bg-[#FAF7EE] px-3.5 py-3 text-[13px] text-[#2A2218] outline-none disabled:opacity-60"
         style={{ fontFamily: "var(--font-sans)", lineHeight: 1.6, resize: "vertical" }}
       />
 
       <div className="mt-2.5 flex flex-wrap gap-2">
         <button
-          disabled
-          title="Real Gemini generation ships in a follow-up session."
-          className="rounded-full bg-[#F2EBD8] px-5 py-2.5 text-[13px] font-medium text-[#8A7A66] cursor-not-allowed"
+          onClick={generate}
+          disabled={generating}
+          className="rounded-full bg-[#B8893C] px-5 py-2.5 text-[13px] font-medium text-[#1F1810] transition hover:bg-[#A07728] disabled:cursor-default disabled:opacity-60"
         >
-          Generate with Gemini (coming soon)
+          {generating
+            ? "Painting your scene…"
+            : generatedBgUrl
+            ? "Regenerate scene"
+            : "Generate with Gemini"}
         </button>
+
+        {generatedBgUrl && !generating && (
+          <button
+            onClick={clearBg}
+            className="rounded-full border border-[rgba(139,106,31,0.20)] bg-transparent px-4 py-2.5 text-[12px] text-[#8A7A66] hover:text-[#A85C1B]"
+          >
+            Clear · use preset
+          </button>
+        )}
 
         <button
           onClick={() => setShowPrompt((v) => !v)}
@@ -352,10 +419,25 @@ function GeminiPromptSection({ theme }: { theme: string }) {
         </button>
       </div>
 
-      <p className="mt-2 text-[11px] italic text-[#8A7A66]">
-        For now the {themeName} preset background is used. The prompt below is
-        what we'll send to Gemini when the API is wired.
-      </p>
+      {generating && (
+        <p className="mt-2 text-[11px] italic text-[#8A7A66]">
+          Imagen 4 Ultra typically takes 25–40 seconds. The preview will update on its own.
+        </p>
+      )}
+
+      {error && <p className="mt-2 text-[11px] text-[#A85C1B]">{error}</p>}
+
+      {!generating && !error && (
+        <p className="mt-2 text-[11px] italic text-[#8A7A66]">
+          {generatedBgUrl
+            ? "Generated scene is live in the preview. Save to keep, or clear to revert to the " +
+              themeName +
+              " preset."
+            : "Currently using the " +
+              themeName +
+              " preset. Generate to paint a unique scene from your description."}
+        </p>
+      )}
 
       {showPrompt && (
         <div
