@@ -50,6 +50,24 @@ Small but visible UX warts. Worth bundling.
 
 **Estimate:** ~20 min combined.
 
+### 4. Chat history in PRIVATE mode — design call surfaced during verification
+Jamie noticed during the 2026-05-20 test: after switching to PRIVATE and being bounced into `/shrine`, the chat strip still showed messages from the previous session with test2. This isn't a security bug (host always sees their own room) but raises **two design concerns** worth thinking through:
+
+- **Vibe:** PRIVATE is meant to feel contemplative-alone. Seeing chat bubbles from a prior social session breaks the mood the setting evokes.
+- **Privacy of past guests:** if visibility flips back to INVITED and a NEW guest is invited, that new guest sees ALL prior chat — including everything the previous guest said. Test2 didn't consent to test3 reading their words.
+
+Design options (any combination):
+
+1. **Hide the chat strip entirely when `visibility === 'PRIVATE'`.** Cheap, contemplative. Doesn't fix concern #2.
+2. **Per-guest scoped chat history.** Each guest only sees messages from sessions when they were admitted. Schema change: track each ShrineGuest's `firstJoinedAt` + `lastBlockedAt`, scope chat queries to that window. Most "correct" but most complex.
+3. **Ephemeral chat — soft-delete on visibility change or last-guest-leaves.** Chat as conversation-in-the-moment, not record. Lossy.
+4. **Host-controlled "Clear conversation" button in the editor.** Opt-in wipe. Most flexible, least magical. Pairs nicely with #1.
+5. **Per-conversation threading.** Each invite redemption opens a new chat thread; previous threads viewable separately by host. Most complex.
+
+**Recommended bundle:** #1 + #4 — hide chat when PRIVATE (vibe) AND give the host an explicit "End conversation" wipe button (privacy of past guests).
+
+**Estimate:** ~half a session including the polish items above.
+
 ### 4. Phase 2 AI lesson generator — the LMS engine
 **Scope:** the corpus exists (`c:\Adaptensor\Spiritual_Results\Library_1-100\`, Quran, Bahá'í) but nothing reads it.
 - pgvector extension on Neon, embed all 100+ source texts.
