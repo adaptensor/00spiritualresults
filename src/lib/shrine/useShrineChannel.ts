@@ -42,9 +42,16 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
   const lastChimeAtRef = useRef<number>(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // Hydrate chat history once on mount.
+  // Effect deps MUST be primitives — passing the `viewer` object directly
+  // would re-fire the effect on every parent render (new object reference),
+  // tearing down and recreating the Supabase channel each time, which the
+  // other tab perceives as a constant leave/join cycle.
+  const viewerId = viewer?.id ?? null;
+  const viewerName = viewer?.name ?? "";
+
+  // Hydrate chat history once on mount (or whenever the room itself changes).
   useEffect(() => {
-    if (!viewer) return;
+    if (!viewerId) return;
     let cancelled = false;
     fetch(`/api/shrine/chat?shrineId=${shrineId}&limit=50`)
       .then((r) => (r.ok ? r.json() : { messages: [] }))
@@ -59,15 +66,16 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
     return () => {
       cancelled = true;
     };
-  }, [shrineId, viewer]);
+  }, [shrineId, viewerId]);
 
-  // Establish channel + presence.
+  // Establish channel + presence. Only re-runs when the room or viewer
+  // identity actually changes — not on every parent render.
   useEffect(() => {
-    if (!viewer) return;
+    if (!viewerId) return;
     const supabase = getSupabaseBrowser();
     const channel = supabase.channel(`shrine:${ownerId}`, {
       config: {
-        presence: { key: `${PRESENCE_KEY_PREFIX}:${viewer.id}` },
+        presence: { key: `${PRESENCE_KEY_PREFIX}:${viewerId}` },
       },
     });
 
@@ -80,7 +88,7 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
 
     channel.on("broadcast", { event: "kick" }, ({ payload }) => {
       const target = (payload as { userId?: string })?.userId;
-      if (target && target === viewer.id) {
+      if (target && target === viewerId) {
         window.location.href = "/dashboard";
       }
     });
@@ -94,7 +102,7 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
       for (const key of Object.keys(state)) {
         const metas = state[key] ?? [];
         for (const m of metas) {
-          if (m.user_id && m.user_id !== viewer.id) {
+          if (m.user_id && m.user_id !== viewerId) {
             others.push({ user_id: m.user_id, name: m.name || "someone" });
           }
         }
@@ -107,13 +115,13 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
       }
     });
 
-    // Chime ONLY the first time each distinct user shows up in the channel.
-    // Supabase re-fires presence join events on resync/heartbeat, so without
-    // tracking known users the chime would loop every ~10s (the throttle).
+    // Chime at most once per distinct user per session. Even on a legitimate
+    // leave+rejoin we stay quiet — contemplative product, not a notification
+    // app. A page refresh resets the session and re-enables the chime.
     channel.on("presence", { event: "join" }, ({ newPresences }) => {
       const arrivers = (newPresences || [])
         .map((p) => (p as { user_id?: string }).user_id)
-        .filter((id): id is string => !!id && id !== viewer.id);
+        .filter((id): id is string => !!id && id !== viewerId);
 
       const trulyNew = arrivers.filter((id) => !chimedUsersRef.current.has(id));
       if (trulyNew.length === 0) return;
@@ -121,17 +129,9 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
       playChime(audioCtxRef, lastChimeAtRef);
     });
 
-    // When someone really leaves, forget them so a re-join chimes once more.
-    channel.on("presence", { event: "leave" }, ({ leftPresences }) => {
-      for (const p of leftPresences || []) {
-        const id = (p as { user_id?: string }).user_id;
-        if (id) chimedUsersRef.current.delete(id);
-      }
-    });
-
     channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
-        await channel.track({ user_id: viewer.id, name: viewer.name });
+        await channel.track({ user_id: viewerId, name: viewerName });
       }
     });
 
@@ -140,12 +140,12 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
       channel.unsubscribe().catch(() => {});
       channelRef.current = null;
     };
-  }, [shrineId, ownerId, viewer]);
+  }, [shrineId, ownerId, viewerId, viewerName]);
 
   const send = useCallback(
     async (body: string) => {
       const text = body.trim();
-      if (!text || !viewer) return;
+      if (!text || !viewerId) return;
       const res = await fetch("/api/shrine/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -158,7 +158,7 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
         setMessages((prev) => [...prev, data.message]);
       }
     },
-    [shrineId, viewer],
+    [shrineId, viewerId],
   );
 
   return { messages, other, send };
