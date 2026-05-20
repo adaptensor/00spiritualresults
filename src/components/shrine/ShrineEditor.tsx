@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ShrineRoom } from "./ShrineRoom";
+import { InvitePanel } from "./InvitePanel";
 import { SHRINE_THEMES, getTheme } from "@/lib/shrine/themes";
 import { AVAILABLE_OBJECTS, MAX_OBJECTS } from "@/lib/shrine/objects";
 import { buildGeminiPrompt } from "@/lib/shrine/prompt";
@@ -167,6 +168,10 @@ export function ShrineEditor({ initial }: Props) {
             value={visibility}
             onChange={(v) => setVisibility(v as ShrineVisibility)}
           />
+        </EditorSection>
+
+        <EditorSection title="Invite a friend">
+          <InvitePanel />
         </EditorSection>
 
         <div className="mt-4 flex gap-3 pb-8">

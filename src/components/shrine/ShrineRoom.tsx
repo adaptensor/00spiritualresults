@@ -7,7 +7,7 @@ import { OBJECT_RENDERERS } from "./ScenePrimitives";
 import { getTheme } from "@/lib/shrine/themes";
 import type { ShrineObject } from "@/lib/shrine/types";
 
-type Guest = { name: string; initial: string } | null;
+export type Guest = { name: string; initial: string } | null;
 
 type ShrineRoomProps = {
   themeId: string;
@@ -18,6 +18,7 @@ type ShrineRoomProps = {
   editing?: boolean;
   generatedBgUrl?: string | null;
   selectedObjectId?: string | null;
+  guest?: Guest;
   onToggleCandle?: () => void;
   onToggleMusic?: () => void;
   onEdit?: () => void;
@@ -34,6 +35,7 @@ export function ShrineRoom({
   editing = false,
   generatedBgUrl = null,
   selectedObjectId = null,
+  guest = null,
   onToggleCandle,
   onToggleMusic,
   onEdit,
@@ -42,7 +44,6 @@ export function ShrineRoom({
 }: ShrineRoomProps) {
   const theme = getTheme(themeId);
   const [chatExpanded, setChatExpanded] = useState(false);
-  const guest: Guest = null;
 
   const sceneStyle: React.CSSProperties = generatedBgUrl
     ? {
@@ -147,8 +148,8 @@ export function ShrineRoom({
         />
       ))}
 
-      {/* presence (host only) */}
-      {!editing && isHost && guest && <PresenceIndicator guest={guest} />}
+      {/* presence — shows the other party when wired to real-time (Phase 6) */}
+      {!editing && guest && <PresenceIndicator guest={guest} />}
 
       {/* chat strip stub (visual only — full chat ships with invites session) */}
       {!editing && <ChatStrip expanded={chatExpanded} onToggle={() => setChatExpanded((v) => !v)} />}
@@ -249,7 +250,7 @@ function ShrineControls({
   }> = [
     { icon: <Flame size={18} strokeWidth={1.5} />, label: candleLit ? "Candle on" : "Candle off", action: onToggleCandle, active: candleLit },
     { icon: <Music size={18} strokeWidth={1.5} />, label: musicOn ? "Sound on" : "Sound off", action: onToggleMusic, active: musicOn },
-    { icon: <UserPlus size={18} strokeWidth={1.5} />, label: "Invite a friend (coming soon)" },
+    ...(isHost ? [{ icon: <UserPlus size={18} strokeWidth={1.5} />, label: "Invite a friend", href: "/shrine/edit" }] : []),
     ...(isHost ? [{ icon: <Pencil size={18} strokeWidth={1.5} />, label: "Edit room", action: onEdit }] : []),
     { icon: <X size={18} strokeWidth={1.5} />, label: "Leave", href: "/dashboard" },
   ];

@@ -16,6 +16,7 @@ model User {
   id          String   @id @default(cuid())
   clerkUserId String   @unique
   email       String   @unique
+  username    String?  @unique
   name        String?
   imageUrl    String?
   createdAt   DateTime @default(now())
@@ -26,8 +27,11 @@ model User {
   quizAttempts   QuizAttempt[]
   reflections    Reflection[]
   shrine         Shrine?
+  shrineGuestOf  ShrineGuest[]    @relation("ShrineGuestUser")
+  chatMessages   ChatMessage[]    @relation("ChatSender")
 
   @@index([clerkUserId])
+  @@index([username])
 }
 
 // ─── Shrine ───────────────────────────────────────────────────────────────
@@ -60,7 +64,59 @@ model Shrine {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
+  invites      ShrineInvite[]
+  guests       ShrineGuest[]
+  chatMessages ChatMessage[]
+
   @@index([userId])
+}
+
+// ─── Shrine social: invites, guests, chat ────────────────────────────────
+// Single-use, time-bounded tokens that grant a viewer access to a shrine.
+// invitedEmail is null for link-only invites, set for email invites.
+model ShrineInvite {
+  id           String    @id @default(cuid())
+  shrineId     String
+  shrine       Shrine    @relation(fields: [shrineId], references: [id], onDelete: Cascade)
+  token        String    @unique
+  invitedEmail String?
+  usedById     String?
+  usedAt       DateTime?
+  revokedAt    DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  @@index([shrineId])
+  @@index([token])
+}
+
+// Persistent guest whitelist. Once a viewer redeems an invite they're added
+// here so they don't need a fresh token to revisit. blockedAt soft-removes.
+model ShrineGuest {
+  id        String    @id @default(cuid())
+  shrineId  String
+  shrine    Shrine    @relation(fields: [shrineId], references: [id], onDelete: Cascade)
+  guestId   String
+  guest     User      @relation("ShrineGuestUser", fields: [guestId], references: [id], onDelete: Cascade)
+  blockedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([shrineId, guestId])
+  @@index([shrineId])
+}
+
+// Chat messages persist in Neon. Realtime delivery is via Supabase Broadcast;
+// this table is the source of truth on rejoin / history scroll-back.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  shrineId  String
+  shrine    Shrine   @relation(fields: [shrineId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([shrineId, createdAt])
 }
 
 // ─── Content: Module → Lesson → Quiz ─────────────────────────────────────

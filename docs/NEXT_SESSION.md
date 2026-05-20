@@ -17,15 +17,9 @@ Read this first on next session start. Companion to [`CLAUDE_DESIGN_PROMPT.md`](
 
 ---
 
-## ⚠️ Must do before "shrine in production" actually works for real users
+## ✅ Prod env vars pushed (2026-05-20)
 
-Local dev is fully working. **Production is NOT — Vercel doesn't have the new env vars yet.** Do this first on next session:
-
-1. **Vercel → spiritualresults project → Settings → Environment Variables** — add for Production + Preview:
-   - `GEMINI_API_KEY` = (in `.env.local` line 32; same key works for prod)
-   - `BLOB_READ_WRITE_TOKEN` — should auto-inject if the Blob store is connected to the project; if not, **Storage → Create → Blob → "shrine-bg"**.
-2. **Redeploy** (Vercel → Deployments → "…" → Redeploy on latest).
-3. Smoke-test by signing in at https://spiritualresults.org and generating a shrine from a fresh prod account.
+`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `BLOB_READ_WRITE_TOKEN` are all on Vercel for production+preview+development. Redeploy `dpl_CD3GWWVDEfroMuPhKQGFb9t3AgBK` is live. CLI smoke confirmed landing 200, `/shrine` 307 (auth redirect), `/api/shrine/generate` 401 (auth-guarded). Final auth-required test (logging in and clicking Generate) still owed once Jamie has a moment in-browser.
 
 ---
 

@@ -14,6 +14,28 @@ export async function requireUserId(): Promise<string> {
   return userId;
 }
 
+// URL slug for /shrine/[username]. Derived from email-local-part, lowercased,
+// stripped to a-z0-9 plus hyphen/underscore, then disambiguated with -2/-3/...
+// on collision. Lookup race is benign — at worst two new users in the same
+// millisecond would race and one would get a Prisma unique-violation; the next
+// sign-in call re-runs this and resolves it.
+async function generateUsername(email: string): Promise<string> {
+  const local = email.split("@")[0] ?? "";
+  let base = local
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24);
+  if (base.length < 3) base = `soul-${Math.random().toString(36).slice(2, 6)}`;
+
+  let candidate = base;
+  let suffix = 2;
+  while (await db.user.findUnique({ where: { username: candidate } })) {
+    candidate = `${base}-${suffix++}`;
+  }
+  return candidate;
+}
+
 /**
  * Get-or-create the Prisma User row for the currently signed-in Clerk user.
  * Call this on the first authenticated page load to mirror the Clerk identity
@@ -45,7 +67,12 @@ export async function getOrCreateLocalUser() {
   if (byClerkId) {
     return db.user.update({
       where: { id: byClerkId.id },
-      data: { email, name, imageUrl },
+      data: {
+        email,
+        name,
+        imageUrl,
+        ...(byClerkId.username ? {} : { username: await generateUsername(email) }),
+      },
     });
   }
 
@@ -53,11 +80,22 @@ export async function getOrCreateLocalUser() {
   if (byEmail) {
     return db.user.update({
       where: { id: byEmail.id },
-      data: { clerkUserId: clerkUser.id, name, imageUrl },
+      data: {
+        clerkUserId: clerkUser.id,
+        name,
+        imageUrl,
+        ...(byEmail.username ? {} : { username: await generateUsername(email) }),
+      },
     });
   }
 
   return db.user.create({
-    data: { clerkUserId: clerkUser.id, email, name, imageUrl },
+    data: {
+      clerkUserId: clerkUser.id,
+      email,
+      name,
+      imageUrl,
+      username: await generateUsername(email),
+    },
   });
 }
