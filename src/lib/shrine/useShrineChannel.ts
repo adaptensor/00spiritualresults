@@ -38,6 +38,7 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
   const [other, setOther] = useState<PresenceOther>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const knownIdsRef = useRef<Set<string>>(new Set());
+  const chimedUsersRef = useRef<Set<string>>(new Set());
   const lastChimeAtRef = useRef<number>(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -106,11 +107,26 @@ export function useShrineChannel({ shrineId, ownerId, viewer }: Args) {
       }
     });
 
+    // Chime ONLY the first time each distinct user shows up in the channel.
+    // Supabase re-fires presence join events on resync/heartbeat, so without
+    // tracking known users the chime would loop every ~10s (the throttle).
     channel.on("presence", { event: "join" }, ({ newPresences }) => {
-      const isReal = (newPresences || []).some(
-        (p) => (p as { user_id?: string }).user_id && (p as { user_id?: string }).user_id !== viewer.id,
-      );
-      if (isReal) playChime(audioCtxRef, lastChimeAtRef);
+      const arrivers = (newPresences || [])
+        .map((p) => (p as { user_id?: string }).user_id)
+        .filter((id): id is string => !!id && id !== viewer.id);
+
+      const trulyNew = arrivers.filter((id) => !chimedUsersRef.current.has(id));
+      if (trulyNew.length === 0) return;
+      for (const id of trulyNew) chimedUsersRef.current.add(id);
+      playChime(audioCtxRef, lastChimeAtRef);
+    });
+
+    // When someone really leaves, forget them so a re-join chimes once more.
+    channel.on("presence", { event: "leave" }, ({ leftPresences }) => {
+      for (const p of leftPresences || []) {
+        const id = (p as { user_id?: string }).user_id;
+        if (id) chimedUsersRef.current.delete(id);
+      }
     });
 
     channel.subscribe(async (status) => {
