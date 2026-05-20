@@ -17,7 +17,6 @@ type Props = {
   generatedBgUrl: string | null;
   shrineId: string;
   ownerId: string;
-  hostName: string;
   viewerId: string;
   viewerName: string;
 };
@@ -30,7 +29,6 @@ export function ShrineRoomGuest({
   generatedBgUrl,
   shrineId,
   ownerId,
-  hostName,
   viewerId,
   viewerName,
 }: Props) {
@@ -44,14 +42,6 @@ export function ShrineRoomGuest({
     viewer: { id: viewerId, name: viewerName },
   });
 
-  // If real presence has resolved someone in the room, prefer that; otherwise
-  // fall back to "the host's room" as ambient presence so the room feels held.
-  const guest =
-    other ??
-    (hostName
-      ? { name: hostName, initial: (hostName || "?").charAt(0).toUpperCase() }
-      : null);
-
   return (
     <ShrineRoom
       themeId={themeId}
@@ -60,7 +50,7 @@ export function ShrineRoomGuest({
       candleLit={candleLit}
       musicOn={musicOn}
       generatedBgUrl={generatedBgUrl}
-      guest={guest}
+      guest={other}
       viewerId={viewerId}
       messages={messages}
       onSendMessage={send}

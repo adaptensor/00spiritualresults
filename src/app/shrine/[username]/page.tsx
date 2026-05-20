@@ -108,7 +108,6 @@ export default async function ShrineGuestPage({ params, searchParams }: PageProp
       generatedBgUrl={owner.shrine.generatedBgUrl}
       shrineId={owner.shrine.id}
       ownerId={owner.id}
-      hostName={hostNameOf(owner)}
       viewerId={viewer.id}
       viewerName={viewerName}
     />
